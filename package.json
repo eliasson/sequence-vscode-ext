@@ -15,7 +15,7 @@
         "Other"
     ],
     "activationEvents": [
-        "onCommand:extension.sayHello"
+        "onLanguage:sequnece"
     ],
     "main": "./out/src/extension",
     "contributes": {
@@ -23,6 +23,27 @@
             {
                 "command": "extension.sayHello",
                 "title": "Hello World"
+            }
+        ],
+        "languages": [
+            {
+                "id": "sequence",
+                "extensions": [
+                    ".seq"
+                ],
+                "aliases": [
+                    "Sequence",
+                    "sequence",
+                    "seq"
+                ],
+                "configuration": "./language-configuration.json"
+            }
+        ],
+        "grammars": [
+            {
+                "language": "sequence",
+                "scopeName": "source.sequence",
+                "path": "./syntaxes/sequence.tmLanguage.json"
             }
         ]
     },

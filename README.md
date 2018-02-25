@@ -1,6 +1,6 @@
 # Sequence VS Code
 
-VS Code extension for the Sequence - A simple sequence diagram tool.
+VS Code extension for Sequence - A simple sequence diagram tool.
 
 This extension is work in progress with the current features:
 

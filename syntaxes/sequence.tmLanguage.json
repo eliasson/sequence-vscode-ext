@@ -1,0 +1,53 @@
+{
+    "name": "sequence",
+    "version": "0.0.1",
+    "fileTypes": ["seq"],
+    "uuid": "e8673144-837e-454c-b6a0-7de47851c5f4",
+    "scopeName": "source.sequence",
+
+    "patterns": [
+        {
+            "match": "\\s*#.*",
+            "name": "comment.line"
+        },
+        {
+            "name": "string.quoted",
+            "begin": "'",
+            "beginCaptures": {
+                "1": {
+                    "name": "string.quoted"
+                }
+            },
+            "end": "'",
+            "endCaptures": {
+                "1": {
+                    "name": "string.quoted"
+                }
+            }
+        },
+        {
+            "name": "string.quoted",
+            "begin": "\"",
+            "beginCaptures": {
+                "1": {
+                    "name": "string.quoted"
+                }
+            },
+            "end": "\"",
+            "endCaptures": {
+                "1": {
+                    "name": "string.quoted"
+                }
+            }
+        },
+        {
+            "match": "\\b(Name|Actor|Object|is|Sequence|ask|tell|replies)\\b",
+            "name": "keyword.other.sequence"
+        },
+        {
+            "comment": "Mark any other word is an identifier / variable",
+            "match": "([a-zA-Z0-9]+)",
+            "name": "variable.sequence"
+        }
+    ]
+}
