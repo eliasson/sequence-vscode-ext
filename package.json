@@ -2,7 +2,7 @@
     "name": "sequence-vscode-ext",
     "displayName": "sequence-vscode-ext",
     "description": "Sequence - A simple sequence diagram tool",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "repository": {
         "type": "git",
         "url": "https://github.com/eliasson/sequence-vscode-ext"
