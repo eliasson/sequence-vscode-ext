@@ -24,7 +24,7 @@ class StubExtensionContext implements vscode.ExtensionContext {
 }
 
 const DEBOUCE_TIMEOUT_MS = 1;
-const SOURCE = 'Name Unit-test';
+const SOURCE = 'Name "Unit-test"';
 const UPDATED_SOURCE = 'Name Unit-test\nActor Alice';
 
 const newDM = () => new extension.DocumentManager(DEBOUCE_TIMEOUT_MS);
@@ -176,6 +176,83 @@ describe('DocumentManager', () => {
                 dm.update(newUri('missing'), UPDATED_SOURCE)
                     .then(reject, resolve); // Switched since failure is expected
             });
+        });
+    });
+
+    describe('compiling', () => {
+        let doc,
+            dm,
+            registerDiagnostics,
+            clearDiagnostics;
+
+        beforeEach(() => {
+            doc = newDoc('one.seq');
+            dm = newDM();
+            registerDiagnostics = chai.spy.on(dm, 'registerDiagnostics');
+            clearDiagnostics = chai.spy.on(dm, 'clearDiagnostics');
+        });
+
+        it('should update the stored document', (done) => {
+            dm.add(doc)
+                .then(() => {
+                    const updatedDoc = dm.documents.get(doc.uri.toString());
+                    const svgStart = updatedDoc.svgContent.startsWith('<?xml version="1.0" standalone="no"?><!DOCTYPE svg');
+                    expect(svgStart).to.be.true;
+                    done();
+                });
+        });
+
+        describe('a document with errors', () => {
+            it('should register errors', (done) => {
+                doc.source = 'Name "With error"\n' +
+                    'Actor Alice\n' +
+                    'System Bob\n';
+                dm.add(doc)
+                    .then(() => {
+                        expect(registerDiagnostics).to.have.been.called.once;
+                        done();
+                    });
+            });
+        });
+
+        describe('a document without errors', () => {
+            beforeEach(() => {
+                return new Promise((resolve, reject) => {
+                    doc.source = 'Name "No error"\n' +
+                    'Actor Alice\n';
+                    dm.add(doc)
+                        .then(() => {
+                            resolve();
+                        });
+                });
+            });
+
+            it('should not register errors', () => {
+                expect(registerDiagnostics).not.to.have.been.called;
+            });
+
+            it('should clear errors', () => {
+                expect(clearDiagnostics).to.have.been.called.once;
+            });
+        });
+    });
+
+    describe('convertDiagnostics', () => {
+        let dm;
+
+        beforeEach(() => {
+            dm = newDM();
+        });
+
+        it('should convert to VS Diagnostics', () => {
+            const diagnostics = dm.convertDiagnostics([
+                { line: 8, column: 2, offendingSymbol: 'foo', message: 'error' },
+                { line: 1, column: 0, message: 'error with no symbol' }
+            ]);
+            expect(diagnostics).to.deep.equal([
+                new vscode.Diagnostic(new vscode.Range(new vscode.Position(7, 2), new vscode.Position(7, 5)), 'error'),
+                new vscode.Diagnostic(new vscode.Range(new vscode.Position(0, 0), new vscode.Position(0, 1)), 'error with no symbol')
+            ]);
         });
     });
 });

@@ -20,7 +20,8 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.workspace.onDidOpenTextDocument((event: vscode.TextDocument) => {
             if(event.languageId === LANGUAGE_ID) {
-                documentManager.add({ uri: event.uri, source: event.getText()});
+                documentManager.add({ uri: event.uri, source: event.getText()})
+                    .then(() => {}, () => {});
             }
         })
     );
@@ -28,7 +29,8 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.workspace.onDidCloseTextDocument((event: vscode.TextDocument) => {
             if(event.languageId === LANGUAGE_ID) {
-                documentManager.remove(event.uri);
+                documentManager.remove(event.uri)
+                    .then(() => {}, () => {});
             };
         })
     );
@@ -36,7 +38,8 @@ export function activate(context: vscode.ExtensionContext) {
     context.subscriptions.push(
         vscode.workspace.onDidChangeTextDocument((event: vscode.TextDocumentChangeEvent) => {
             if(event.document.languageId === LANGUAGE_ID) {
-                documentManager.update(event.document.uri, event.document.getText());
+                documentManager.update(event.document.uri, event.document.getText())
+                    .then(() => {}, () => {});
             }
         })
     );
@@ -66,6 +69,8 @@ interface SequenceDocument {
     svgContent?: string;
     pendingCompilation?: NodeJS.Timer;
     rejectCompilation?: Function
+    /* A reference to possible diagnostics registered for this document */
+    diagnostics?: any;
 }
 
 export class DocumentManager {
@@ -110,10 +115,38 @@ export class DocumentManager {
             // Only clear the handles, we do not want to reject the given promise!
             if(doc.pendingCompilation) doc.pendingCompilation = undefined;
             if(doc.rejectCompilation) doc.rejectCompilation = undefined;
+
+            // Compile the source and store the produced SVG in the DM
+            const compilationResult = sequence.compile(doc.source);
+            if(compilationResult.isValid()) {
+                doc.svgContent = compilationResult.output;
+                this.clearDiagnostics(doc);
+            } else {
+                this.registerDiagnostics(doc, compilationResult.diagnostics);
+            }
         }
-        // TODO: Compile the source code
-        // TODO: Report diagnostic messages to editor
-        // TODO: Store the compiled output and used to preview and generate SVG
+    }
+
+    convertDiagnostics(sequenceDiagnostic): vscode.Diagnostic[] {
+        const diagnostics = sequenceDiagnostic.map(d => {
+            const line = d.line - 1; // VS Code uses 0 based and sequence 1 based
+            const symbolLength = d.offendingSymbol ? d.offendingSymbol.length : 1;
+            const start = new vscode.Position(line, d.column);
+            const end = new vscode.Position(line, d.column + symbolLength);
+            return new vscode.Diagnostic(new vscode.Range(start, end), d.message)
+        });
+        return diagnostics;
+    }
+
+    private registerDiagnostics(doc: SequenceDocument, diagnostics) {
+        const collection = vscode.languages.createDiagnosticCollection('sequence')
+        collection.set(doc.uri, this.convertDiagnostics(diagnostics));
+        doc.diagnostics = collection;
+        this.documents.set(doc.uri.toString(), doc);
+    }
+
+    private clearDiagnostics(doc: SequenceDocument) {
+        if(doc.diagnostics) doc.diagnostics.clear();
     }
 
     private scheduleCompilation(doc: SequenceDocument): Promise<void>  {
@@ -123,12 +156,14 @@ export class DocumentManager {
                 resolve();
             }, this.debounceTimeoutMs);
 
+            // TODO: Create a copy-constructor
             this.documents.set(doc.uri.toString(), {
                 uri: doc.uri,
                 source: doc.source,
                 svgContent: doc.svgContent,
                 pendingCompilation: timer,
-                rejectCompilation: reject
+                rejectCompilation: reject,
+                diagnostics: doc.diagnostics
             });
         });
     }
