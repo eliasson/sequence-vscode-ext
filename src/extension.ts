@@ -57,6 +57,15 @@ export function activate(context: vscode.ExtensionContext) {
             vscode.window.showInformationMessage('Not yet implemented');
         })
     );
+
+    // When the plugin is activated and there are opened and visible editors with sequence
+    // code we need to scheuld compile at start, since no other event will be issued by vscode.
+    vscode.window.visibleTextEditors.map(editor => {
+        if(editor.document.languageId === LANGUAGE_ID) {
+            documentManager.add({ uri: editor.document.uri, source: editor.document.getText()})
+                .then(() => {}, () => {});
+        }
+    });
 }
 
 export function deactivate() {
