@@ -56,6 +56,26 @@ describe('Extension', () => {
     xit('should register compile command', () => {
         expect(registerCommandSpy).to.have.been.called.with('sequence.previewSvg');
     });
+
+    describe('constructPreviewUri', () => {
+        let uri: vscode.Uri;
+
+        beforeEach(() => {
+            uri = extension.constructPreviewUri(vscode.Uri.file("/foo/bar.sequence"));
+        });
+
+        it('should have sequence as scheme', () => {
+            expect(uri.scheme).to.equal('sequence');
+        });
+
+        it('should have sequence-file with .svg extension as path', () => {
+            expect(uri.path).to.equal('/foo/bar.sequence.svg');
+        });
+
+        it('should have sequence-file as query parameter', () => {
+            expect(uri.query).to.equal('file:///foo/bar.sequence');
+        });
+    });
 });
 
 describe('DocumentManager', () => {
@@ -95,6 +115,16 @@ describe('DocumentManager', () => {
             dm.add(doc)
                 .then(() => {
                     expect(compileDocument).to.have.been.called.with(doc.uri);
+                    done();
+                });
+        });
+
+        it('should be possible to retrieve the document', (done) => {
+            dm.add(doc)
+                .then(() => {
+                    // Document is not equal, since it augmented with more information
+                    const doc2 = dm.get(doc.uri);
+                    expect(doc.name).to.equal(doc2.name);
                     done();
                 });
         });

@@ -12,10 +12,17 @@ export const vscodeUnderTest = vscode;
 // This is the VSC internal scheme user for the generated Sequence diagrams
 const SCHEME = 'sequence';
 const LANGUAGE_ID = 'sequence';
+const DIAGRAM_EDITOR_COLUMN = 1;
+const DIAGRAM_EDITOR_TITLE = `Sequence diagram`;
 
 export function activate(context: vscode.ExtensionContext) {
     // Wrapper around how documents and SVG providers are linked
-    const documentManager = new DocumentManager(); 
+    const documentManager = new DocumentManager();
+
+    // Register our SVG provider used to preview the generated SVG diagrams.
+    // Only one provider per scheme can be registered
+    const provider = new SVGProvider(documentManager);
+    let registration = vscode.workspace.registerTextDocumentContentProvider(SCHEME, provider);
 
     context.subscriptions.push(
         vscode.workspace.onDidOpenTextDocument((event: vscode.TextDocument) => {
@@ -54,7 +61,10 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showInformationMessage('This file is not identified as a Sequence file (.seq).');
                 return;
             }
-            vscode.window.showInformationMessage('Not yet implemented');
+
+            return vscode.commands.executeCommand(
+                'vscode.previewHtml', constructPreviewUri(editor.document.uri), DIAGRAM_EDITOR_COLUMN, DIAGRAM_EDITOR_TITLE)
+                    .then(() => console.log('Sequence shown'), vscode.window.showErrorMessage);
         })
     );
 
@@ -65,6 +75,20 @@ export function activate(context: vscode.ExtensionContext) {
             documentManager.add({ uri: editor.document.uri, source: editor.document.getText()})
                 .then(() => {}, () => {});
         }
+    });
+}
+
+/**
+ * Construct a new URI to be consumed by the Sequence SVG provider, with the
+ * selected editor URI as a query parameter.
+ *
+ * @param uri The URI to the document that should be displayed as preview
+ */
+export function constructPreviewUri(uri: vscode.Uri): vscode.Uri {
+    return uri.with({
+        scheme: SCHEME,
+        path: uri.path + '.svg',
+        query: uri.toString()       // Add the source URI as path so it can be extracted in the SVG provider
     });
 }
 
@@ -115,6 +139,10 @@ export class DocumentManager {
             promise = this.scheduleCompilation(doc);
         }
         return promise || Promise.reject(`No document with uri ${uri} exists!`);
+    }
+
+    get(uri: vscode.Uri): SequenceDocument {
+        return this.documents.get(uri.toString());
     }
 
     private compileDocument(uri: vscode.Uri) {
@@ -186,5 +214,24 @@ export class DocumentManager {
             doc.rejectCompilation();
             doc.rejectCompilation = undefined;
         }
+    }
+}
+
+export class SVGProvider implements vscode.TextDocumentContentProvider {
+    constructor(private documentManager: DocumentManager) {}
+
+    onDidChange?: vscode.Event<vscode.Uri>;
+
+    provideTextDocumentContent(uri: vscode.Uri, token: vscode.CancellationToken): vscode.ProviderResult<string> {
+        const sourceUri = vscode.Uri.parse(uri.query);
+        const doc = this.documentManager.get(sourceUri);
+
+        return new Promise(resolve => {
+            resolve(this.wrapAsHtml(doc.svgContent));
+        });
+    }
+
+    private wrapAsHtml(svgContent: string): string {
+        return `<!DOCTYPE html><html><body>${svgContent}<strong>hello</strong></body></html>`;
     }
 }
