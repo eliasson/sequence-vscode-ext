@@ -12,7 +12,7 @@ export const vscodeUnderTest = vscode;
 // This is the VSC internal scheme user for the generated Sequence diagrams
 const SCHEME = 'sequence';
 const LANGUAGE_ID = 'sequence';
-const DIAGRAM_EDITOR_COLUMN = 1;
+const DIAGRAM_PREVIEW_COLUMN = 2;
 const DIAGRAM_EDITOR_TITLE = `Sequence diagram`;
 
 export function activate(context: vscode.ExtensionContext) {
@@ -61,9 +61,8 @@ export function activate(context: vscode.ExtensionContext) {
                 vscode.window.showInformationMessage('This file is not identified as a Sequence file (.seq).');
                 return;
             }
-
             return vscode.commands.executeCommand(
-                'vscode.previewHtml', constructPreviewUri(editor.document.uri), DIAGRAM_EDITOR_COLUMN, DIAGRAM_EDITOR_TITLE)
+                'vscode.previewHtml', constructPreviewUri(editor.document.uri), DIAGRAM_PREVIEW_COLUMN, DIAGRAM_EDITOR_TITLE)
                     .then(() => console.log('Sequence shown'), vscode.window.showErrorMessage);
         })
     );
@@ -232,6 +231,6 @@ export class SVGProvider implements vscode.TextDocumentContentProvider {
     }
 
     private wrapAsHtml(svgContent: string): string {
-        return `<!DOCTYPE html><html><body>${svgContent}<strong>hello</strong></body></html>`;
+        return `<html><head><style>html {box-sizing: border-box;} #diagram {display: flex;}</style></head><body><div id="diagram">${svgContent}</div></body></html>`;
     }
 }
