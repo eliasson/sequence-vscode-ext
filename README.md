@@ -9,8 +9,9 @@ This extension is work in progress with the current features:
 [ ] Documentation of keywords 
 [ ] Intellisense on keywords
 [ ] Intellisense on participants
-[ ] Export diagram to file (SVG)
+[*] Export diagram to file (SVG)
 [*] Preview diagram (SVG)
+[ ] Update preview on edit & save
 
 
 ## Contributing

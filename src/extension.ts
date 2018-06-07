@@ -7,6 +7,7 @@
 
 import * as vscode from 'vscode';
 import * as sequence from '@eliasson/sequence';
+import * as fs from 'fs';
 export const vscodeUnderTest = vscode;
 
 // This is the VSC internal scheme user for the generated Sequence diagrams
@@ -51,22 +52,6 @@ export function activate(context: vscode.ExtensionContext) {
         })
     );
 
-    context.subscriptions.push(
-        vscode.commands.registerCommand('sequence.previewSvg', () => {
-            const editor = vscode.window.activeTextEditor;
-            if (!editor) return;
-
-            const doc = editor.document;
-            if (doc.languageId !== LANGUAGE_ID) {
-                vscode.window.showInformationMessage('This file is not identified as a Sequence file (.seq).');
-                return;
-            }
-            return vscode.commands.executeCommand(
-                'vscode.previewHtml', constructPreviewUri(editor.document.uri), DIAGRAM_PREVIEW_COLUMN, DIAGRAM_EDITOR_TITLE)
-                    .then(() => console.log('Sequence shown'), vscode.window.showErrorMessage);
-        })
-    );
-
     // When the plugin is activated and there are opened and visible editors with sequence
     // code we need to scheuld compile at start, since no other event will be issued by vscode.
     vscode.window.visibleTextEditors.map(editor => {
@@ -75,6 +60,66 @@ export function activate(context: vscode.ExtensionContext) {
                 .then(() => {}, () => {});
         }
     });
+
+    registerCommands(vscode, documentManager);
+}
+
+/**
+ * Register commands as part of the bootstrap, but isolated in separate function
+ * in order to have testable.
+ * 
+ * @param commands The namespace handling commands
+ */
+export function registerCommands(vscModule, documentManager?: DocumentManager) {
+    vscModule.commands.registerCommand('sequence.previewSvg', () => {
+        const editor = vscModule.window.activeTextEditor;
+        if (!editor) {
+            vscModule.window.showErrorMessage('Found no active editor!');
+            return;
+        }
+
+        const doc = editor.document;
+        if (doc.languageId !== LANGUAGE_ID) {
+            vscModule.window.showInformationMessage('This file is not identified as a Sequence file (.seq).');
+            return;
+        }
+        return vscModule.commands.executeCommand('vscode.previewHtml', 
+            constructPreviewUri(editor.document.uri), DIAGRAM_PREVIEW_COLUMN, DIAGRAM_EDITOR_TITLE)
+                .then(() => console.log('Sequence shown'), vscModule.window.showErrorMessage);
+    });
+
+    vscModule.commands.registerCommand('sequence.saveSvg', () => {
+        querySaveActiveDocument(vscModule, documentManager);
+    });
+}
+
+export function querySaveActiveDocument(vscModule, documentManager: DocumentManager) {
+    const editor = vscModule.window.activeTextEditor;
+    if (!editor)  {
+        vscModule.window.showErrorMessage('Found no active editor!');
+        return;
+    }
+
+    const doc = editor.document;
+    if (doc.languageId !== LANGUAGE_ID) {
+        vscModule.window.showInformationMessage('This file is not identified as a Sequence file (.seq).');
+        return;
+    }
+
+    const sourceUri = vscode.Uri.parse(doc.uri);
+    const seqDoc = documentManager.get(sourceUri);
+
+    if (seqDoc.diagnostics && seqDoc.diagnostics.get(seqDoc.uri)) {
+        vscModule.window.showInformationMessage('Cannot save a Sequence diagram with errors');
+        return
+    }
+
+    vscModule.window.showSaveDialog({ filters: { Images: ['svg'] } })
+        .then(uri => {
+            if (uri) {
+                fs.writeFileSync(uri.fsPath, seqDoc.svgContent, 'utf-8');
+            }
+        });
 }
 
 /**
@@ -102,7 +147,7 @@ interface SequenceDocument {
     pendingCompilation?: NodeJS.Timer;
     rejectCompilation?: Function
     /* A reference to possible diagnostics registered for this document */
-    diagnostics?: any;
+    diagnostics?: vscode.DiagnosticCollection;
 }
 
 export class DocumentManager {

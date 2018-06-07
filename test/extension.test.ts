@@ -31,16 +31,67 @@ const newDM = () => new extension.DocumentManager(DEBOUCE_TIMEOUT_MS);
 const newUri = (name) => vscode.Uri.parse(`sequence://example/${name}`);
 const newDoc = (name) => { return { uri: newUri(name), source: SOURCE } };
 
+// A stub version of vscode global namespace in order to make the gluing more testable
+// that it currently is
+module vscodestub {
+    export interface CommandStub {
+        command: string;
+        callback: (...args: any[]) => any;
+        thisArg?: any
+    }
+
+    export let registeredCommands: Array<CommandStub> = [];
+    export let executedCommands: Array<string> = []
+    export let informationMessages: Array<string> = [];
+    export let errorMessages: Array<string> = [];
+
+    export function clear() {
+        registeredCommands = [];
+    }
+
+    export function containsCommand(command: string) {
+        return registeredCommands.find(c => c.command === command) !== null;
+    }
+
+    export function executeCommand(command: string) {
+        return registeredCommands.find(c => c.command === command).callback();
+    }
+
+    export namespace commands {
+        export function registerCommand(command: string, callback: (...args: any[]) => any, thisArg?: any): vscode.Disposable {
+            registeredCommands.push({ command, callback, thisArg });
+            return new vscode.Disposable((() => {}));
+        }
+
+        export function executeCommand<T>(command: string, ...rest: any[]) {
+            executedCommands.push(command);
+            return Promise.resolve(undefined);
+        }
+    }
+    export namespace window {
+        export let activeTextEditor = null;
+        
+        export function showErrorMessage(message: string) {
+            errorMessages.push(message);
+        }
+        
+        export function showInformationMessage(message: string) {
+            informationMessages.push(message);
+        }
+
+        export function showSaveDialog() {
+            return Promise.resolve('file://fake.svg');
+        }
+    }
+}
+
 describe('Extension', () => {
     let context,
-        registerCommandSpy,
         registerProviderSpy;
 
     beforeEach(() => {
         context = new StubExtensionContext();
-        registerCommandSpy = chai.spy(extension.vscodeUnderTest.commands.registerCommand);
         registerProviderSpy = chai.spy(extension.vscodeUnderTest.workspace.registerTextDocumentContentProvider)
-        extension.activate(context);
     });
 
     afterEach(() => {
@@ -53,8 +104,112 @@ describe('Extension', () => {
         expect(vscode.extensions.getExtension('markuseliasson.sequence-vscode-ext')).to.not.be.undefined;
     });
 
-    xit('should register compile command', () => {
-        expect(registerCommandSpy).to.have.been.called.with('sequence.previewSvg');
+    describe('preview command', () => {
+        beforeEach(() => {
+            vscodestub.clear();
+            extension.registerCommands(vscodestub);
+        });
+
+        it('should be registered', () => {
+            expect(vscodestub.containsCommand('sequence.previewSvg')).to.be.true;
+        });
+
+        describe('when executed', () => {
+            describe('without active editor', () => {
+                beforeEach(() => {
+                    vscodestub.window.activeTextEditor = null;
+                    vscodestub.executeCommand('sequence.previewSvg');
+                });
+    
+                it('should show error message', () => {
+                    expect(vscodestub.errorMessages).to.contain('Found no active editor!');
+                });
+            });
+
+            describe('for non-sequence document', () => {
+                beforeEach(() => {
+                    vscodestub.window.activeTextEditor = { document: { languageId: 'javascript' } };
+                    vscodestub.executeCommand('sequence.previewSvg');
+                });
+    
+                it('should show information message', () => {
+                    expect(vscodestub.informationMessages).to.contain('This file is not identified as a Sequence file (.seq).');
+                });
+            });
+
+            describe('for a sequence document', () => {
+                beforeEach(() => {
+                    vscodestub.window.activeTextEditor = { document: { languageId: 'sequence', uri: vscode.Uri.parse('') } };
+                });
+    
+                it('should execute command "vscode.previewHtml"', (done) => {
+                    vscodestub.executeCommand('sequence.previewSvg').then(() => {
+                        expect(vscodestub.executedCommands).to.contain('vscode.previewHtml');
+                        done();
+                    })
+                });
+            });
+        });
+    });
+
+    describe('save command', () => {
+        beforeEach(() => {
+            vscodestub.clear();
+            extension.registerCommands(vscodestub);
+        });
+
+        it('should be registered', () => {
+            expect(vscodestub.containsCommand('sequence.saveSvg')).to.be.true;
+        });
+    });
+
+    describe('querySaveActiveDocument', () => {
+        let dm;
+
+        beforeEach(() => {
+            vscodestub.clear();
+            dm = newDM();
+        });
+
+        describe('without active editor', () => {
+            beforeEach(() => {
+                vscodestub.window.activeTextEditor = null;
+                extension.querySaveActiveDocument(vscodestub, dm);
+            });
+
+            it('should show error message', () => {
+                expect(vscodestub.errorMessages).to.contain('Found no active editor!');
+            });
+        });
+
+        describe('for non-sequence document', () => {
+            beforeEach(() => {
+                vscodestub.window.activeTextEditor = { document: { languageId: 'javascript' } };
+                extension.querySaveActiveDocument(vscodestub, dm);
+            });
+
+            it('should show information message', () => {
+                expect(vscodestub.informationMessages).to.contain('This file is not identified as a Sequence file (.seq).');
+            });
+        });
+
+        describe('for an invalid sequence document', () => {
+            let doc;
+
+            beforeEach(() => {
+                vscodestub.window.activeTextEditor = { document: { languageId: 'sequence', uri: "sequence://example/foo.seq" } };
+                doc = { uri: newUri('foo.seq'), source: 'garbage' }
+            });
+
+            it('should show information message', (done) => {
+                dm.add(doc)
+                    .then(() => {
+                        extension.querySaveActiveDocument(vscodestub, dm);
+                        expect(vscodestub.informationMessages).to.contain('Cannot save a Sequence diagram with errors');
+                        done();
+                    });
+            });
+        });
     });
 
     describe('constructPreviewUri', () => {
