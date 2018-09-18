@@ -101,7 +101,7 @@ describe('Extension', () => {
     });
 
     it('should be loaded', () => {
-        expect(vscode.extensions.getExtension('markuseliasson.sequence-vscode-ext')).to.not.be.undefined;
+        expect(vscode.extensions.getExtension('eliasson.sequence-vscode-ext')).to.not.be.undefined;
     });
 
     describe('preview command', () => {

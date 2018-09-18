@@ -6,7 +6,7 @@ This extension is work in progress with the current features:
 
 [*] Syntax highlighting of sequence grammar
 [ ] Goto participant definition
-[ ] Documentation of keywords 
+[ ] Documentation of keywords
 [ ] Intellisense on keywords
 [ ] Intellisense on participants
 [*] Export diagram to file (SVG)

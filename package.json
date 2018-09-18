@@ -3,16 +3,16 @@
     "displayName": "sequence-vscode-ext",
     "description": "Sequence - A simple sequence diagram tool",
     "version": "0.0.2",
-    "repository": {
-        "type": "git",
-        "url": "https://github.com/eliasson/sequence-vscode-ext"
-    },
-    "publisher": "markuseliasson",
+    "publisher": "eliasson",
+    "license": "MIT",
     "engines": {
         "vscode": "^1.20.0"
     },
     "categories": [
         "Other"
+    ],
+    "keywords": [
+        "sequence diagrams"
     ],
     "activationEvents": [
         "onLanguage:sequence"
@@ -50,6 +50,15 @@
                 "path": "./syntaxes/sequence.tmLanguage.json"
             }
         ]
+    },
+    "bugs": {
+        "url": "https://github.com/eliasson/sequence-vscode-ext/issues",
+        "email": "markus.eliasson@gmail.com"
+    },
+    "homepage": "https://github.com/eliasson/sequence-vscode-ext",
+    "repository": {
+        "type": "git",
+        "url": "https://github.com/eliasson/sequence-vscode-ext"
     },
     "scripts": {
         "vscode:prepublish": "npm run compile",
