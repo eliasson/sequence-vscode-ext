@@ -199,9 +199,9 @@ export class DocumentManager {
 
             // Compile the source and store the produced SVG in the DM
             const compilationResult = sequence.compile(doc.source);
+            this.clearDiagnostics(doc);
             if(compilationResult.isValid()) {
                 doc.svgContent = compilationResult.output;
-                this.clearDiagnostics(doc);
             } else {
                 this.registerDiagnostics(doc, compilationResult.diagnostics);
             }
