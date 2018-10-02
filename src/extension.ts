@@ -8,6 +8,7 @@
 import * as vscode from 'vscode';
 import * as sequence from '@eliasson/sequence';
 import * as fs from 'fs';
+import * as path from 'path';
 export const vscodeUnderTest = vscode;
 
 // This is the VSC internal scheme user for the generated Sequence diagrams
@@ -190,6 +191,12 @@ export class DocumentManager {
     }
 
     private compileDocument(uri: vscode.Uri) {
+        // Sequence (the compiler) has the template SVG bundled in its NPM package.
+        // this is off limits for this VS Code plugin and we need to access our
+        // own version of the templates.
+        const myExtDir = vscode.extensions.getExtension('eliasson.sequence-vscode-ext').extensionPath;
+        const templateDir = path.join(myExtDir, 'templates');
+
         if(this.documents.has(uri.toString())) {
             const doc = this.documents.get(uri.toString());
 
@@ -198,7 +205,7 @@ export class DocumentManager {
             if(doc.rejectCompilation) doc.rejectCompilation = undefined;
 
             // Compile the source and store the produced SVG in the DM
-            const compilationResult = sequence.compile(doc.source);
+            const compilationResult = sequence.compile(doc.source, templateDir);
             this.clearDiagnostics(doc);
             if(compilationResult.isValid()) {
                 doc.svgContent = compilationResult.output;
