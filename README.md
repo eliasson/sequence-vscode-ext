@@ -4,13 +4,13 @@ VS Code extension for Sequence - A simple sequence diagram tool.
 
 This extension is work in progress with the current features:
 
-[*] Syntax highlighting of sequence grammar
+[x] Syntax highlighting of sequence grammar
 [ ] Goto participant definition
 [ ] Documentation of keywords
 [ ] Intellisense on keywords
 [ ] Intellisense on participants
-[*] Export diagram to file (SVG)
-[*] Preview diagram (SVG)
+[x] Export diagram to file (SVG)
+[x] Preview diagram (SVG)
 [ ] Update preview on edit & save
 
 
